@@ -13,7 +13,7 @@ const MAGIC: [u8; MAGIC_LEN] = [
 ];
 
 const VERSION_LEN: usize = 3;
-const VERSION: [u8; VERSION_LEN] = [0, 0, 0];
+const VERSION: [u8; VERSION_LEN] = [0, 1, 0];
 
 const FILE_ID_LEN: usize = 8;
 
