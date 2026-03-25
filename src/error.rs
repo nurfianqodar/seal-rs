@@ -28,11 +28,29 @@ impl From<aes_gcm::Error> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Io(e) => write!(f, "io error: {e}"),
-            Self::Argon2(e) => write!(f, "argon2 error: {e}"),
-            Self::Aes(e) => write!(f, "aes error: {e}"),
+            Self::Io(e) => write!(f, "{}", io_msg(e.kind())),
+            Self::Argon2(_e) => write!(f, "invalid key derivation parameter(s)"),
+            Self::Aes(_e) => write!(f, "decryption failed"),
         }
     }
 }
 
 impl std::error::Error for Error {}
+
+fn io_msg(kind: io::ErrorKind) -> &'static str {
+    match kind {
+        io::ErrorKind::NotFound => "file not found",
+        io::ErrorKind::PermissionDenied => "permission denied",
+        io::ErrorKind::AlreadyExists => "file already exists",
+        io::ErrorKind::InvalidInput => "invalid input",
+        io::ErrorKind::InvalidData => "incompatible file",
+        io::ErrorKind::UnexpectedEof => "data was corrupt",
+        io::ErrorKind::WriteZero => "failed to write file",
+        io::ErrorKind::OutOfMemory => "out of memory",
+        io::ErrorKind::Interrupted => "operation interrupted",
+        io::ErrorKind::Unsupported => "operation not supported",
+        io::ErrorKind::TimedOut => "operation timed out",
+        io::ErrorKind::WouldBlock => "resource temporarily unavailable",
+        _ => "i/o error",
+    }
+}
