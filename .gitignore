@@ -1,1 +1,10 @@
 /target
+
+# IDEA
+.idea/
+.vscode/
+.zed/
+
+# testing
+.tmp/
+
