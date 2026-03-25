@@ -1,4 +1,4 @@
-use crate::{cli::Cli, result::Result};
+use crate::cli::Cli;
 
 mod chunk;
 mod cli;
@@ -7,8 +7,9 @@ mod ext;
 mod file;
 mod result;
 
-fn main() -> Result<()> {
+fn main() -> () {
     let cli = Cli::new();
-    cli.run()?;
-    Ok(())
+    if let Err(e) = cli.run() {
+        println!("{}", e.to_string());
+    }
 }
