@@ -1,11 +1,9 @@
-use std::io::{self, Write};
-
 use clap::Parser;
 use rand::rngs;
 
 use crate::{
     chunk::{OptionalChunk, RequiredChunk},
-    cli::{Config, Mode},
+    cli::{Config, Mode, guard::ask_password},
     file::{CipherFileReader, CipherText, FileWriter, Header, PlainFileReader, PlainText},
     result::Result,
 };
@@ -87,12 +85,4 @@ impl Cli {
 
         Ok(())
     }
-}
-
-fn ask_password() -> Result<String> {
-    let mut buf = String::new();
-    print!("Input password: ");
-    io::stdout().flush()?;
-    io::stdin().read_line(&mut buf)?;
-    Ok(buf)
 }
