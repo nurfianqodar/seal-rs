@@ -15,3 +15,4 @@ opt-level = "z"
 strip = true
 lto = "fat"
 panic = "abort"
+codegen-units = 1
