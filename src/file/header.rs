@@ -1,3 +1,5 @@
+use std::io;
+
 use aes_gcm::KeyInit;
 use argon2::Params;
 
@@ -164,4 +166,27 @@ mod tests {
         assert_eq!(header1, header2);
         Ok(())
     }
+}
+
+// Be careful this finction change seek to 0
+pub fn reader_has_magic<R>(reader: &mut R) -> Result<bool>
+where
+    R: io::Read + io::Seek,
+{
+    let mut magic = [0u8; MAGIC_LEN];
+    reader.seek(io::SeekFrom::Start(0))?;
+    let mut readn = 0usize;
+    while readn < magic.len() {
+        let n = reader.read(&mut magic[readn..])?;
+        if n == 0 {
+            break;
+        }
+        readn += n;
+    }
+    reader.seek(io::SeekFrom::Start(0))?;
+    if readn != magic.len() {
+        return Ok(false);
+    }
+
+    return Ok(magic == MAGIC);
 }

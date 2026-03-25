@@ -1,6 +1,12 @@
 use std::io;
 
-use crate::chunk::{OptionalChunk, RequiredChunk};
+use aes_gcm::aead::{Aead, AeadMutInPlace};
+
+use crate::{
+    chunk::{OptionalChunk, RequiredChunk},
+    file::Header,
+    result::Result,
+};
 
 #[derive(Debug)]
 pub struct PlainText<const S: usize> {
@@ -39,6 +45,29 @@ impl<const S: usize> OptionalChunk for PlainText<S> {
         }
         writer.write_all(&self.buf[..self.len])?;
         Ok(())
+    }
+}
+
+impl<const S: usize> PlainText<S> {
+    pub fn encrypt<R>(
+        mut self,
+        rng: &mut R,
+        header: &Header,
+        cipher: &mut aes_gcm::Aes256Gcm,
+    ) -> Result<CipherText<S>>
+    where
+        R: rand::Rng,
+    {
+        let id = new_id(rng);
+        let nonce = header.gen_nonce(id);
+        let tag =
+            cipher.encrypt_in_place_detached((&nonce).into(), &id, &mut self.buf[..self.len])?;
+        Ok(CipherText {
+            id: id,
+            buf: self.buf,
+            len: self.len,
+            tag: tag.into(),
+        })
     }
 }
 
@@ -111,7 +140,30 @@ impl<const S: usize> OptionalChunk for CipherText<S> {
 }
 
 impl<const S: usize> CipherText<S> {
-    pub fn id(&self) -> [u8; 4] {
-        self.id
+    pub fn decrypt(
+        mut self,
+        header: &Header,
+        cipher: &mut aes_gcm::Aes256Gcm,
+    ) -> Result<PlainText<S>> {
+        let nonce = header.gen_nonce(self.id);
+        cipher.decrypt_in_place_detached(
+            (&nonce).into(),
+            &self.id,
+            &mut self.buf[..self.len],
+            (&self.tag).into(),
+        )?;
+        Ok(PlainText {
+            buf: self.buf,
+            len: self.len,
+        })
     }
+}
+
+fn new_id<R>(rng: &mut R) -> [u8; ID_LEN]
+where
+    R: rand::Rng,
+{
+    let mut id = [0u8; ID_LEN];
+    rng.fill_bytes(&mut id);
+    id
 }
