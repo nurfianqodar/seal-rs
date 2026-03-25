@@ -1,6 +1,6 @@
 use std::io;
 
-use aes_gcm::aead::{Aead, AeadMutInPlace};
+use aes_gcm::aead::AeadMutInPlace;
 
 use crate::{
     chunk::{OptionalChunk, RequiredChunk},

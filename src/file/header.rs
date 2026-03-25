@@ -1,7 +1,6 @@
 use std::io;
 
 use aes_gcm::KeyInit;
-use argon2::Params;
 
 use crate::{chunk::RequiredChunk, result::Result};
 
@@ -133,7 +132,7 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::PathBuf};
+    use std::fs;
 
     use rand::rngs;
 

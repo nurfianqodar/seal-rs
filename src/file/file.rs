@@ -1,10 +1,6 @@
 use std::{fs, io, path};
 
-use crate::{
-    chunk::RequiredChunk,
-    file::{Header, reader_has_magic},
-    result::Result,
-};
+use crate::{file::reader_has_magic, result::Result};
 
 pub struct PlainFileReader {
     inner: fs::File,
@@ -32,7 +28,6 @@ impl PlainFileReader {
 }
 
 pub struct CipherFileReader {
-    header: Header,
     inner: fs::File,
 }
 
@@ -51,8 +46,7 @@ impl CipherFileReader {
                 io::Error::new(io::ErrorKind::InvalidData, "file was not encrypted").into(),
             );
         }
-        let header = Header::read_from(&mut inner)?;
-        Ok(Self { inner, header })
+        Ok(Self { inner })
     }
 
     pub fn reader(&mut self) -> io::BufReader<&mut fs::File> {

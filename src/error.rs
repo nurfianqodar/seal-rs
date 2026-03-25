@@ -1,4 +1,4 @@
-use std::io;
+use std::{fmt, io};
 
 #[derive(Debug)]
 pub enum Error {
@@ -24,3 +24,15 @@ impl From<aes_gcm::Error> for Error {
         Self::Aes(value)
     }
 }
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(e) => write!(f, "io error: {e}"),
+            Self::Argon2(e) => write!(f, "argon2 error: {e}"),
+            Self::Aes(e) => write!(f, "aes error: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
