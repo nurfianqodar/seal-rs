@@ -1,4 +1,4 @@
-use std::{fs, io};
+use std::fs;
 
 use clap::Parser;
 use rand::{RngExt, distr, rngs};
@@ -88,6 +88,7 @@ impl Cli {
     fn decrypt(&self, input: &str, output: &str, overwrite: bool) -> Result<()> {
         let mut actual_output = output.to_string();
         let mut rng: rngs::StdRng = rand::make_rng();
+
         if input == output {
             let postfix: String = (&mut rng)
                 .sample_iter(&distr::Alphanumeric)
@@ -95,13 +96,8 @@ impl Cli {
                 .map(char::from)
                 .collect();
             actual_output = format!("{}.{}", actual_output, postfix);
-        } else {
-            return Err(io::Error::new(
-                io::ErrorKind::AlreadyExists,
-                "output file already exists. use --overwrite instead",
-            )
-            .into());
         }
+
         // ensure file configured successfuly before go to next processes
         let mut ifile = CipherFileReader::open(input)?;
         let mut ofile = FileWriter::create(&actual_output, overwrite)?;
