@@ -2,79 +2,58 @@ use std::{fs, io, path};
 
 use crate::{file::reader_has_magic, result::Result};
 
-pub struct PlainFileReader {
-    inner: fs::File,
+pub trait SealFile {
+    fn open_plaintext_file<P>(path: P) -> Result<fs::File>
+    where
+        P: AsRef<path::Path>;
+
+    fn open_ciphertext_file<P>(path: P) -> Result<fs::File>
+    where
+        P: AsRef<path::Path>;
+
+    fn create_out_file<P>(path: P) -> Result<fs::File>
+    where
+        P: AsRef<path::Path>;
 }
 
-impl PlainFileReader {
-    pub fn open<P>(path: P) -> Result<Self>
+impl SealFile for fs::File {
+    fn open_plaintext_file<P>(path: P) -> Result<fs::File>
     where
         P: AsRef<path::Path>,
     {
-        let mut inner = fs::OpenOptions::new()
+        let mut file = fs::OpenOptions::new()
             .read(true)
-            .create(false)
             .write(false)
+            .create(false)
             .open(path)?;
-        if reader_has_magic(&mut inner)? {
+        if reader_has_magic(&mut file)? {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "file was encrypted").into());
         }
-        Ok(Self { inner })
+        Ok(file)
     }
 
-    pub fn reader(&mut self) -> io::BufReader<&mut fs::File> {
-        io::BufReader::new(&mut self.inner)
-    }
-}
-
-pub struct CipherFileReader {
-    inner: fs::File,
-}
-
-impl CipherFileReader {
-    pub fn open<P>(path: P) -> Result<Self>
+    fn open_ciphertext_file<P>(path: P) -> Result<fs::File>
     where
         P: AsRef<path::Path>,
     {
-        let mut inner = fs::OpenOptions::new()
+        let mut file = fs::OpenOptions::new()
             .read(true)
-            .create(false)
             .write(false)
+            .create(false)
             .open(path)?;
-        if !reader_has_magic(&mut inner)? {
+        if !reader_has_magic(&mut file)? {
             return Err(
                 io::Error::new(io::ErrorKind::InvalidData, "file was not encrypted").into(),
             );
         }
-        Ok(Self { inner })
+        Ok(file)
     }
 
-    pub fn reader(&mut self) -> io::BufReader<&mut fs::File> {
-        io::BufReader::new(&mut self.inner)
-    }
-}
-
-pub struct FileWriter {
-    inner: fs::File,
-}
-
-impl FileWriter {
-    pub fn create<P>(path: P, overwrite: bool) -> Result<Self>
+    fn create_out_file<P>(path: P) -> Result<fs::File>
     where
         P: AsRef<path::Path>,
     {
-        let mut opts = fs::OpenOptions::new();
-        opts.write(true);
-        if overwrite {
-            opts.create(true).truncate(true);
-        } else {
-            opts.create_new(true);
-        }
-        let inner = opts.open(path)?;
-        Ok(Self { inner })
-    }
-
-    pub fn writer(&mut self) -> io::BufWriter<&mut fs::File> {
-        io::BufWriter::new(&mut self.inner)
+        let file = fs::OpenOptions::new().create(true).write(true).open(path)?;
+        Ok(file)
     }
 }
