@@ -2,7 +2,7 @@ use std::io;
 
 use aes_gcm::KeyInit;
 
-use crate::{chunk::RequiredChunk, result::Result};
+use crate::{file::RequiredChunk, result::Result};
 
 const MAGIC_LEN: usize = 16;
 const MAGIC: [u8; MAGIC_LEN] = [
@@ -136,7 +136,7 @@ mod tests {
 
     use rand::rngs;
 
-    use crate::{chunk::RequiredChunk, file::header::Header, result::Result};
+    use crate::{file::RequiredChunk, file::header::Header, result::Result};
 
     fn create_tmp_file(name: &str) -> fs::File {
         let path = std::env::temp_dir().join(name);

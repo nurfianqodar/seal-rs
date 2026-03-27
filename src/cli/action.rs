@@ -1,7 +1,7 @@
 use std::{fs, io};
 
 use crate::{
-    chunk::{OptionalChunk, RequiredChunk},
+    file::{OptionalChunk, RequiredChunk},
     cli::util::{gen_tmp_path, validate_output_path},
     file::{CipherText, Header, PlainText, SealFile},
     result::Result,

@@ -1,9 +1,7 @@
 use crate::cli::Cli;
 
-mod chunk;
 mod cli;
 mod error;
-mod ext;
 mod file;
 mod result;
 

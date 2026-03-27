@@ -1,4 +1,4 @@
-use crate::{chunk::RequiredChunk, result::Result};
+use crate::{file::RequiredChunk, result::Result};
 
 impl RequiredChunk for u64 {
     fn read_from<R>(reader: &mut R) -> Result<Self>
