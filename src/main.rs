@@ -7,9 +7,9 @@ mod ext;
 mod file;
 mod result;
 
-fn main() -> () {
+fn main() {
     let cli = Cli::new();
     if let Err(e) = cli.run() {
-        println!("{}", e.to_string());
+        println!("{}", e);
     }
 }

@@ -105,7 +105,7 @@ impl Header {
             magic: MAGIC,
             version: VERSION,
             file_id,
-            argon2_version: argon2_version,
+            argon2_version,
             salt,
             t_cost,
             m_cost,
@@ -187,5 +187,5 @@ where
         return Ok(false);
     }
 
-    return Ok(magic == MAGIC);
+    Ok(magic == MAGIC)
 }

@@ -31,7 +31,7 @@ impl<const S: usize> OptionalChunk for PlainText<S> {
         if readn == 0 {
             return Ok(None);
         }
-        return Ok(Some(Self { buf, len: readn }));
+        Ok(Some(Self { buf, len: readn }))
     }
 
     fn write_to<W>(&self, writer: &mut W) -> crate::result::Result<()>
@@ -65,7 +65,7 @@ impl<const S: usize> PlainText<S> {
         let tag =
             cipher.encrypt_in_place_detached((&nonce).into(), &id, &mut self.buf[..self.len])?;
         Ok(CipherText {
-            id: id,
+            id,
             buf: self.buf,
             len: self.len,
             tag: tag.into(),

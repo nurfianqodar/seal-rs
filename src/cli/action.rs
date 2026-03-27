@@ -57,9 +57,8 @@ impl Action for Encrypt {
         let mut reader = io::BufReader::new(input_file);
         let mut writer = io::BufWriter::new(output_file);
 
-        let password = rpassword::prompt_password("password: ").map_err(|e| {
+        let password = rpassword::prompt_password("password: ").inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
-            e
         })?;
 
         let header = Header::new(
@@ -70,38 +69,32 @@ impl Action for Encrypt {
             self.parallelism,
         );
 
-        header.write_to(&mut writer).map_err(|e| {
+        header.write_to(&mut writer).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
-            e
         })?;
 
-        let mut cipher = header.gen_cipher(&password).map_err(|e| {
+        let mut cipher = header.gen_cipher(&password).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
-            e
         })?;
 
         while let Some(plaintext) =
-            PlainText::<CHUNK_SIZE>::read_from(&mut reader).map_err(|e| {
+            PlainText::<CHUNK_SIZE>::read_from(&mut reader).inspect_err(|_| {
                 _ = fs::remove_file(&tmp_output);
-                e
             })?
         {
             let ciphertext = plaintext
                 .encrypt(&mut rng, &header, &mut cipher)
-                .map_err(|e| {
+                .inspect_err(|_| {
                     _ = fs::remove_file(&tmp_output);
-                    e
                 })?;
 
-            ciphertext.write_to(&mut writer).map_err(|e| {
+            ciphertext.write_to(&mut writer).inspect_err(|_| {
                 _ = fs::remove_file(&tmp_output);
-                e
             })?;
         }
 
-        fs::rename(&tmp_output, &self.output).map_err(|e| {
+        fs::rename(&tmp_output, &self.output).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
-            e
         })?;
         Ok(())
     }
@@ -134,40 +127,33 @@ impl Action for Decrypt {
         let mut reader = io::BufReader::new(input_file);
         let mut writer = io::BufWriter::new(output_file);
 
-        let password = rpassword::prompt_password("password: ").map_err(|e| {
+        let password = rpassword::prompt_password("password: ").inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
-            e
         })?;
 
-        let header = Header::read_from(&mut reader).map_err(|e| {
+        let header = Header::read_from(&mut reader).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
-            e
         })?;
 
-        let mut cipher = header.gen_cipher(&password).map_err(|e| {
+        let mut cipher = header.gen_cipher(&password).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
-            e
         })?;
 
         while let Some(ciphertext) =
-            CipherText::<CHUNK_SIZE>::read_from(&mut reader).map_err(|e| {
+            CipherText::<CHUNK_SIZE>::read_from(&mut reader).inspect_err(|_| {
                 _ = fs::remove_file(&tmp_output);
-                e
             })?
         {
-            let plaintext = ciphertext.decrypt(&header, &mut cipher).map_err(|e| {
+            let plaintext = ciphertext.decrypt(&header, &mut cipher).inspect_err(|_| {
                 _ = fs::remove_file(&tmp_output);
-                e
             })?;
-            plaintext.write_to(&mut writer).map_err(|e| {
+            plaintext.write_to(&mut writer).inspect_err(|_| {
                 _ = fs::remove_file(&tmp_output);
-                e
             })?;
         }
 
-        fs::rename(&tmp_output, &self.output).map_err(|e| {
+        fs::rename(&tmp_output, &self.output).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
-            e
         })?;
 
         Ok(())
