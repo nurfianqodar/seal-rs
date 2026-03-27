@@ -70,7 +70,7 @@ impl<const S: usize> OptionalChunk for PlainText<S> {
             return Ok(());
         }
         if self.len > S {
-            return Err(io::Error::new(io::ErrorKind::OutOfMemory, "chunk size overflow").into());
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "chunk size overflow").into());
         }
         writer.write_all(&self.buf[..self.len])?;
         Ok(())
@@ -114,28 +114,24 @@ impl<const S: usize> OptionalChunk for CipherText<S> {
         Self: Sized,
     {
         let mut id = [0u8; ID_LEN];
-        let mut readn = 0usize;
+        let n = reader.read(&mut id)?;
+        if n == 0 {
+            return Ok(None);
+        }
+        let mut readn = n;
         while readn < id.len() {
             let n = reader.read(&mut id[readn..])?;
             if n == 0 {
-                break;
+                return Err(
+                    io::Error::new(io::ErrorKind::UnexpectedEof, "truncated chunk id").into(),
+                );
             }
             readn += n;
-        }
-        if readn == 0 {
-            return Ok(None);
-        }
-        if readn < id.len() {
-            return Err(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                "unexpected eof while reading ciphertext chunk",
-            )
-            .into());
         }
         let len = u64::read_from(reader)? as usize;
         if len > S {
             return Err(io::Error::new(
-                io::ErrorKind::OutOfMemory,
+                io::ErrorKind::InvalidData,
                 "length of buffer information is larger than chunk buffer",
             )
             .into());
@@ -157,7 +153,7 @@ impl<const S: usize> OptionalChunk for CipherText<S> {
             return Ok(());
         }
         if self.len > S {
-            return Err(io::Error::new(io::ErrorKind::OutOfMemory, "chunk size overflow").into());
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "chunk size overflow").into());
         }
         writer.write_all(&self.id)?;
         (self.len as u64).write_to(writer)?;
