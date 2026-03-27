@@ -34,7 +34,7 @@ pub trait OptionalChunk {
         Self: Sized;
 }
 
-#[derive(Debug)]
+#[derive(Debug, zeroize::ZeroizeOnDrop, zeroize::Zeroize)]
 pub struct PlainText<const S: usize> {
     buf: [u8; S],
     len: usize,
@@ -78,16 +78,12 @@ impl<const S: usize> OptionalChunk for PlainText<S> {
 }
 
 impl<const S: usize> PlainText<S> {
-    pub fn encrypt<R>(
+    pub fn encrypt(
         mut self,
-        rng: &mut R,
         header: &Header,
         cipher: &mut aes_gcm::Aes256Gcm,
-    ) -> Result<CipherText<S>>
-    where
-        R: rand::Rng,
-    {
-        let id = new_id(rng);
+    ) -> Result<CipherText<S>> {
+        let id = new_id();
         let nonce = header.gen_nonce(id);
         let tag =
             cipher.encrypt_in_place_detached((&nonce).into(), &id, &mut self.buf[..self.len])?;
@@ -103,7 +99,7 @@ impl<const S: usize> PlainText<S> {
 pub const TAG_LEN: usize = 16;
 pub const ID_LEN: usize = util::ID_LEN;
 
-#[derive(Debug)]
+#[derive(Debug, zeroize::ZeroizeOnDrop, zeroize::Zeroize)]
 pub struct CipherText<const S: usize> {
     id: [u8; ID_LEN],
     buf: [u8; S],

@@ -1,11 +1,8 @@
+use crate::cli::util::{gen_tmp_path, validate_output_path};
+use crate::core::{decrypt, encrypt};
+use crate::file::SealFile;
+use crate::result::Result;
 use std::{fs, io};
-
-use crate::{
-    cli::util::{gen_tmp_path, validate_output_path},
-    core::{decrypt, encrypt},
-    file::SealFile,
-    result::Result,
-};
 
 pub trait Action {
     fn run(&self) -> Result<()>;

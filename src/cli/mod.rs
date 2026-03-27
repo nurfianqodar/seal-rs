@@ -2,14 +2,13 @@ mod action;
 mod config;
 mod util;
 
-pub use config::*;
-
 use crate::{
     cli::{Config, Mode, action::Action},
     core::VERSION_STRING,
     result::Result,
 };
 use clap::Parser;
+pub use config::*;
 
 pub struct Cli {
     config: Config,

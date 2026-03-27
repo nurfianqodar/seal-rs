@@ -1,15 +1,14 @@
+use crate::core::{FILE_ID_LEN, MAGIC, MAGIC_LEN, RequiredChunk, SALT_LEN, VERSION, VERSION_LEN};
+use crate::result::Result;
 use aes_gcm::KeyInit;
+use rand::Rng;
 
-use crate::{
-    core::{FILE_ID_LEN, MAGIC, MAGIC_LEN, RequiredChunk, SALT_LEN, VERSION, VERSION_LEN},
-    result::Result,
-};
-
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, zeroize::ZeroizeOnDrop, zeroize::Zeroize)]
 pub struct Header {
     magic: [u8; MAGIC_LEN],
     version: [u8; VERSION_LEN],
     file_id: [u8; FILE_ID_LEN],
+    #[zeroize(skip)]
     argon2_version: argon2::Version,
     salt: [u8; SALT_LEN],
     m_cost: u32,
@@ -71,16 +70,8 @@ impl RequiredChunk for Header {
 }
 
 impl Header {
-    pub fn new<R>(
-        rng: &mut R,
-        argon2_version: argon2::Version,
-        t_cost: u32,
-        m_cost: u32,
-        p_cost: u32,
-    ) -> Self
-    where
-        R: rand::Rng,
-    {
+    pub fn new(argon2_version: argon2::Version, t_cost: u32, m_cost: u32, p_cost: u32) -> Self {
+        let mut rng = rand::rng();
         let mut file_id = [0u8; FILE_ID_LEN];
         rng.fill_bytes(&mut file_id);
 
@@ -118,11 +109,9 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
+    use crate::core::{RequiredChunk, header::Header};
+    use crate::result::Result;
     use std::fs;
-
-    use rand::rngs;
-
-    use crate::{core::RequiredChunk, core::header::Header, result::Result};
 
     fn create_tmp_file(name: &str) -> fs::File {
         let path = std::env::temp_dir().join(name);
@@ -141,8 +130,7 @@ mod tests {
         let fname = "header.bin";
 
         let mut f = create_tmp_file(fname);
-        let mut rng: rngs::StdRng = rand::make_rng();
-        let header1 = Header::new(&mut rng, argon2::Version::V0x13, 3, 1024 * 64, 2);
+        let header1 = Header::new(argon2::Version::V0x13, 3, 1024 * 64, 2);
         header1.write_to(&mut f)?;
 
         let mut f = open_tmp_file(fname);

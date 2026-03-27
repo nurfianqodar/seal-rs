@@ -3,12 +3,10 @@ mod ext;
 mod header;
 mod util;
 
-use std::io;
-
+use crate::result::Result;
 use chunk::*;
 use header::*;
-
-use crate::result::Result;
+use std::io;
 
 const MAGIC_LEN: usize = 16;
 const MAGIC: [u8; MAGIC_LEN] = [
@@ -34,18 +32,11 @@ where
     R: io::Read,
     W: io::Write,
 {
-    let mut rng = rand::rng();
-    let header = Header::new(
-        &mut rng,
-        ARGON2_VERSION,
-        TIME_COST,
-        MEMORY_COST,
-        PARALLELISM,
-    );
+    let header = Header::new(ARGON2_VERSION, TIME_COST, MEMORY_COST, PARALLELISM);
     header.write_to(writer)?;
     let mut cipher = header.gen_cipher(password)?;
     while let Some(plaintext) = PlainText::<CHUNK_SIZE>::read_from(reader)? {
-        let ciphertext = plaintext.encrypt(&mut rng, &header, &mut cipher)?;
+        let ciphertext = plaintext.encrypt(&header, &mut cipher)?;
         ciphertext.write_to(writer)?;
     }
     Ok(())

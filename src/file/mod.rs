@@ -1,6 +1,6 @@
+use crate::core::reader_has_magic;
+use crate::result::Result;
 use std::{fs, io, path};
-
-use crate::{core::reader_has_magic, result::Result};
 
 pub trait SealFile {
     fn open_plaintext_file<P>(path: P) -> Result<fs::File>
