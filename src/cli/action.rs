@@ -57,45 +57,43 @@ impl Action for Encrypt {
         let mut reader = io::BufReader::new(input_file);
         let mut writer = io::BufWriter::new(output_file);
 
-        let password = rpassword::prompt_password("password: ").inspect_err(|_| {
+        self.encrypt(&mut rng, &mut reader, &mut writer)
+            .inspect_err(|_| {
+                _ = fs::remove_file(&tmp_output);
+            })?;
+
+        fs::rename(&tmp_output, &self.output).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
         })?;
+        Ok(())
+    }
+}
 
+impl Encrypt {
+    fn encrypt<R>(
+        &self,
+        rng: &mut R,
+        reader: &mut io::BufReader<fs::File>,
+        writer: &mut io::BufWriter<fs::File>,
+    ) -> Result<()>
+    where
+        R: rand::Rng,
+    {
+        let password = rpassword::prompt_password("password: ")?;
         let header = Header::new(
-            &mut rng,
+            rng,
             ARGON2_VERSION,
             self.time_cost,
             self.memory_cost,
             self.parallelism,
         );
-
-        header.write_to(&mut writer).inspect_err(|_| {
-            _ = fs::remove_file(&tmp_output);
-        })?;
-
-        let mut cipher = header.gen_cipher(&password).inspect_err(|_| {
-            _ = fs::remove_file(&tmp_output);
-        })?;
-
-        while let Some(plaintext) =
-            PlainText::<CHUNK_SIZE>::read_from(&mut reader).inspect_err(|_| {
-                _ = fs::remove_file(&tmp_output);
-            })?
-        {
-            let ciphertext = plaintext
-                .encrypt(&mut rng, &header, &mut cipher)
-                .inspect_err(|_| {
-                    _ = fs::remove_file(&tmp_output);
-                })?;
-
-            ciphertext.write_to(&mut writer).inspect_err(|_| {
-                _ = fs::remove_file(&tmp_output);
-            })?;
+        header.write_to(writer)?;
+        let mut cipher = header.gen_cipher(&password)?;
+        while let Some(plaintext) = PlainText::<CHUNK_SIZE>::read_from(reader)? {
+            let ciphertext = plaintext.encrypt(rng, &header, &mut cipher)?;
+            ciphertext.write_to(writer)?;
         }
 
-        fs::rename(&tmp_output, &self.output).inspect_err(|_| {
-            _ = fs::remove_file(&tmp_output);
-        })?;
         Ok(())
     }
 }
@@ -127,35 +125,31 @@ impl Action for Decrypt {
         let mut reader = io::BufReader::new(input_file);
         let mut writer = io::BufWriter::new(output_file);
 
-        let password = rpassword::prompt_password("password: ").inspect_err(|_| {
+        self.decrypt(&mut reader, &mut writer).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
         })?;
-
-        let header = Header::read_from(&mut reader).inspect_err(|_| {
-            _ = fs::remove_file(&tmp_output);
-        })?;
-
-        let mut cipher = header.gen_cipher(&password).inspect_err(|_| {
-            _ = fs::remove_file(&tmp_output);
-        })?;
-
-        while let Some(ciphertext) =
-            CipherText::<CHUNK_SIZE>::read_from(&mut reader).inspect_err(|_| {
-                _ = fs::remove_file(&tmp_output);
-            })?
-        {
-            let plaintext = ciphertext.decrypt(&header, &mut cipher).inspect_err(|_| {
-                _ = fs::remove_file(&tmp_output);
-            })?;
-            plaintext.write_to(&mut writer).inspect_err(|_| {
-                _ = fs::remove_file(&tmp_output);
-            })?;
-        }
 
         fs::rename(&tmp_output, &self.output).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
         })?;
 
+        Ok(())
+    }
+}
+
+impl Decrypt {
+    fn decrypt(
+        &self,
+        reader: &mut io::BufReader<fs::File>,
+        writer: &mut io::BufWriter<fs::File>,
+    ) -> Result<()> {
+        let password = rpassword::prompt_password("password: ")?;
+        let header = Header::read_from(reader)?;
+        let mut cipher = header.gen_cipher(&password)?;
+        while let Some(ciphertext) = CipherText::<CHUNK_SIZE>::read_from(reader)? {
+            let plaintext = ciphertext.decrypt(&header, &mut cipher)?;
+            plaintext.write_to(writer)?;
+        }
         Ok(())
     }
 }
