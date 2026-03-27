@@ -1,4 +1,4 @@
-use crate::cli::action::{Decrypt, Encrypt};
+use crate::cli::action::{Decrypt, Encrypt, Verify};
 
 #[derive(Debug, clap::Parser)]
 pub struct Config {
@@ -10,5 +10,6 @@ pub struct Config {
 pub enum Mode {
     Encrypt(Encrypt),
     Decrypt(Decrypt),
+    Verify(Verify),
     Version,
 }

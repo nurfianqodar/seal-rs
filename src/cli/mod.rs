@@ -24,6 +24,7 @@ impl Cli {
         match &self.config.mode {
             Mode::Encrypt(encrypt) => encrypt.run(),
             Mode::Decrypt(decrypt) => decrypt.run(),
+            Mode::Verify(verify) => verify.run(),
             Mode::Version => {
                 println!("seal v{}", VERSION_STRING);
                 Ok(())

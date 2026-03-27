@@ -1,3 +1,5 @@
+use zeroize::Zeroize;
+
 use crate::cli::util::{gen_tmp_path, validate_output_path};
 use crate::core::{decrypt, encrypt};
 use crate::file::SealFile;
@@ -25,7 +27,7 @@ pub struct Encrypt {
 impl Action for Encrypt {
     fn run(&self) -> Result<()> {
         validate_output_path(&self.output, self.overwrite)?;
-        let password = rpassword::prompt_password("password: ")?;
+        let mut password = rpassword::prompt_password("password: ")?;
         let tmp_output = gen_tmp_path(&self.output);
         let mut reader = io::BufReader::new(fs::File::open_plaintext_file(&self.input)?);
         let mut writer = io::BufWriter::new(fs::File::create_out_file(&tmp_output)?);
@@ -35,6 +37,8 @@ impl Action for Encrypt {
         fs::rename(&tmp_output, &self.output).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
         })?;
+        password.zeroize();
+        println!("encryption success");
         Ok(())
     }
 }
@@ -56,16 +60,38 @@ pub struct Decrypt {
 impl Action for Decrypt {
     fn run(&self) -> Result<()> {
         validate_output_path(&self.output, self.overwrite)?;
-        let password = rpassword::prompt_password("password: ")?;
+        let mut password = rpassword::prompt_password("password: ")?;
         let tmp_output = gen_tmp_path(&self.output);
         let mut reader = io::BufReader::new(fs::File::open_ciphertext_file(&self.input)?);
         let mut writer = io::BufWriter::new(fs::File::create_out_file(&tmp_output)?);
         decrypt(&mut reader, &mut writer, &password).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
         })?;
+        password.zeroize();
         fs::rename(&tmp_output, &self.output).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
         })?;
+        println!("decryption success");
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, clap::Args)]
+pub struct Verify {
+    #[arg(short, long, help = "path to input file")]
+    input: String,
+}
+
+impl Action for Verify {
+    fn run(&self) -> Result<()> {
+        let mut password = rpassword::prompt_password("password: ")?;
+        let mut reader = io::BufReader::new(fs::File::open_ciphertext_file(&self.input)?);
+        let mut writer = io::sink();
+        decrypt(&mut reader, &mut writer, &password).inspect_err(|_| {
+            println!("verification failed!");
+        })?;
+        password.zeroize();
+        println!("verification success");
         Ok(())
     }
 }
