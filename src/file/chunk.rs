@@ -1,12 +1,11 @@
-use std::io;
-
-use aes_gcm::aead::AeadMutInPlace;
-
-use crate::{
-    chunk::{OptionalChunk, RequiredChunk},
-    file::Header,
-    result::Result,
+use crate::chunk::{OptionalChunk, RequiredChunk};
+use crate::file::{
+    Header,
+    util::{self, new_id},
 };
+use crate::result::Result;
+use aes_gcm::aead::AeadMutInPlace;
+use std::io;
 
 #[derive(Debug)]
 pub struct PlainText<const S: usize> {
@@ -43,6 +42,9 @@ impl<const S: usize> OptionalChunk for PlainText<S> {
         if self.len == 0 {
             return Ok(());
         }
+        if self.len > S {
+            return Err(io::Error::new(io::ErrorKind::OutOfMemory, "chunk size overflow").into());
+        }
         writer.write_all(&self.buf[..self.len])?;
         Ok(())
     }
@@ -72,7 +74,7 @@ impl<const S: usize> PlainText<S> {
 }
 
 pub const TAG_LEN: usize = 16;
-pub const ID_LEN: usize = 4;
+pub const ID_LEN: usize = util::ID_LEN;
 
 #[derive(Debug)]
 pub struct CipherText<const S: usize> {
@@ -131,6 +133,9 @@ impl<const S: usize> OptionalChunk for CipherText<S> {
         if self.len == 0 {
             return Ok(());
         }
+        if self.len > S {
+            return Err(io::Error::new(io::ErrorKind::OutOfMemory, "chunk size overflow").into());
+        }
         writer.write_all(&self.id)?;
         (self.len as u64).write_to(writer)?;
         writer.write_all(&self.buf[..self.len])?;
@@ -157,13 +162,4 @@ impl<const S: usize> CipherText<S> {
             len: self.len,
         })
     }
-}
-
-fn new_id<R>(rng: &mut R) -> [u8; ID_LEN]
-where
-    R: rand::Rng,
-{
-    let mut id = [0u8; ID_LEN];
-    rng.fill_bytes(&mut id);
-    id
 }
