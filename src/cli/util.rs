@@ -1,5 +1,5 @@
 use crate::result::Result;
-use rand::{RngExt, distr, rngs};
+use rand::{RngExt, distr};
 use std::{fs, io, path};
 
 pub fn validate_output_path(output: &str, overwrite: bool) -> Result<()> {
@@ -18,7 +18,8 @@ pub fn validate_output_path(output: &str, overwrite: bool) -> Result<()> {
 
 // temporary file path
 // from /path/to/file.ext -> /path/to/.file.ext<somerandomstring>
-pub fn gen_tmp_path(origin: &str, rng: &mut rngs::ThreadRng) -> path::PathBuf {
+pub fn gen_tmp_path(origin: &str) -> path::PathBuf {
+    let rng = rand::rng();
     let path = path::Path::new(origin);
     let parent = path.parent().unwrap_or(path::Path::new(""));
     let file_name = path.file_name().unwrap().to_string_lossy();

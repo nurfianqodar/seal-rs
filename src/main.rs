@@ -1,6 +1,7 @@
 use crate::cli::Cli;
 
 mod cli;
+mod core;
 mod error;
 mod file;
 mod result;

@@ -1,23 +1,9 @@
-use std::io;
-
 use aes_gcm::KeyInit;
 
-use crate::{file::RequiredChunk, result::Result};
-
-const MAGIC_LEN: usize = 16;
-const MAGIC: [u8; MAGIC_LEN] = [
-    0xde, 0xad, 0xbe, 0xef, // 4
-    0xde, 0xad, 0xbe, 0xef, // 4
-    0xde, 0xad, 0xbe, 0xef, // 4
-    0xde, 0xad, 0xbe, 0xef, // 4
-];
-
-const VERSION_LEN: usize = 3;
-const VERSION: [u8; VERSION_LEN] = [0, 1, 0];
-
-const FILE_ID_LEN: usize = 8;
-
-const SALT_LEN: usize = 16;
+use crate::{
+    core::{FILE_ID_LEN, MAGIC, MAGIC_LEN, RequiredChunk, SALT_LEN, VERSION, VERSION_LEN},
+    result::Result,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Header {
@@ -136,7 +122,7 @@ mod tests {
 
     use rand::rngs;
 
-    use crate::{file::RequiredChunk, file::header::Header, result::Result};
+    use crate::{core::RequiredChunk, core::header::Header, result::Result};
 
     fn create_tmp_file(name: &str) -> fs::File {
         let path = std::env::temp_dir().join(name);
@@ -165,27 +151,4 @@ mod tests {
         assert_eq!(header1, header2);
         Ok(())
     }
-}
-
-// Be careful this finction change seek to 0
-pub fn reader_has_magic<R>(reader: &mut R) -> Result<bool>
-where
-    R: io::Read + io::Seek,
-{
-    let mut magic = [0u8; MAGIC_LEN];
-    reader.seek(io::SeekFrom::Start(0))?;
-    let mut readn = 0usize;
-    while readn < magic.len() {
-        let n = reader.read(&mut magic[readn..])?;
-        if n == 0 {
-            break;
-        }
-        readn += n;
-    }
-    reader.seek(io::SeekFrom::Start(0))?;
-    if readn != magic.len() {
-        return Ok(false);
-    }
-
-    Ok(magic == MAGIC)
 }

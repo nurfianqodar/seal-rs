@@ -1,14 +1,6 @@
-mod chunk;
-mod ext;
-mod header;
-mod util;
-
-pub use chunk::*;
-pub use header::*;
-
 use std::{fs, io, path};
 
-use crate::{file::reader_has_magic, result::Result};
+use crate::{core::reader_has_magic, result::Result};
 
 pub trait SealFile {
     fn open_plaintext_file<P>(path: P) -> Result<fs::File>
