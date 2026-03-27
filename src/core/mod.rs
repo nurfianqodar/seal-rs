@@ -20,6 +20,7 @@ const MAGIC: [u8; MAGIC_LEN] = [
 
 const VERSION_LEN: usize = 3;
 const VERSION: [u8; VERSION_LEN] = [0, 1, 0];
+pub const VERSION_STRING: &str = "0.1.0";
 const FILE_ID_LEN: usize = 8;
 const SALT_LEN: usize = 16;
 const ARGON2_VERSION: argon2::Version = argon2::Version::V0x13;

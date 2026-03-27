@@ -10,4 +10,5 @@ pub struct Config {
 pub enum Mode {
     Encrypt(Encrypt),
     Decrypt(Decrypt),
+    Version,
 }

@@ -6,6 +6,7 @@ pub use config::*;
 
 use crate::{
     cli::{Config, Mode, action::Action},
+    core::VERSION_STRING,
     result::Result,
 };
 use clap::Parser;
@@ -24,6 +25,10 @@ impl Cli {
         match &self.config.mode {
             Mode::Encrypt(encrypt) => encrypt.run(),
             Mode::Decrypt(decrypt) => decrypt.run(),
+            Mode::Version => {
+                println!("seal v{}", VERSION_STRING);
+                Ok(())
+            }
         }
     }
 }
