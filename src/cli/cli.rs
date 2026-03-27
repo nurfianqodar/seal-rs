@@ -1,6 +1,6 @@
 use crate::{
     chunk::{OptionalChunk, RequiredChunk},
-    cli::{Config, Mode},
+    cli::{Config, Decrypt, Encrypt, Mode},
     file::{CipherText, Header, PlainText, SealFile},
     result::Result,
 };
@@ -23,37 +23,18 @@ impl Cli {
 
     pub fn run(&self) -> Result<()> {
         match &self.config.mode {
-            Mode::Encrypt {
-                input,
-                output,
-                m_cost,
-                t_cost,
-                p_cost,
-                overwrite,
-            } => self.encrypt(&input, &output, *m_cost, *t_cost, *p_cost, *overwrite),
+            Mode::Encrypt(cfg) => self.encrypt(cfg),
 
-            Mode::Decrypt {
-                input,
-                output,
-                overwrite,
-            } => self.decrypt(&input, &output, *overwrite),
+            Mode::Decrypt(cfg) => self.decrypt(cfg),
         }
     }
 
-    fn encrypt(
-        &self,
-        input: &str,
-        output: &str,
-        m_cost: u32,
-        t_cost: u32,
-        p_cost: u32,
-        overwrite: bool,
-    ) -> Result<()> {
-        validate_output_path(output, overwrite)?;
+    fn encrypt(&self, cfg: &Encrypt) -> Result<()> {
+        validate_output_path(&cfg.output, cfg.overwrite)?;
 
         let mut rng = rand::rng();
-        let tmp_output = gen_tmp_path(output, &mut rng);
-        let input_file = fs::File::open_plaintext_file(input)?;
+        let tmp_output = gen_tmp_path(&cfg.output, &mut rng);
+        let input_file = fs::File::open_plaintext_file(&cfg.input)?;
         let output_file = fs::File::create_out_file(&tmp_output)?;
         let mut reader = io::BufReader::new(input_file);
         let mut writer = io::BufWriter::new(output_file);
@@ -63,7 +44,13 @@ impl Cli {
             e
         })?;
 
-        let header = Header::new(&mut rng, ARGON2_VERSION, t_cost, m_cost, p_cost);
+        let header = Header::new(
+            &mut rng,
+            ARGON2_VERSION,
+            cfg.time_cost,
+            cfg.memory_cost,
+            cfg.parallelism,
+        );
 
         header.write_to(&mut writer).map_err(|e| {
             _ = fs::remove_file(&tmp_output);
@@ -94,20 +81,22 @@ impl Cli {
             })?;
         }
 
-        fs::rename(&tmp_output, output).map_err(|e| {
+        fs::rename(&tmp_output, &cfg.output).map_err(|e| {
             _ = fs::remove_file(&tmp_output);
             e
         })?;
         Ok(())
     }
 
-    fn decrypt(&self, input: &str, output: &str, overwrite: bool) -> Result<()> {
-        let mut rng = rand::rng();
-        validate_output_path(output, overwrite)?;
-        let tmp_output = gen_tmp_path(output, &mut rng);
+    fn decrypt(&self, cfg: &Decrypt) -> Result<()> {
+        validate_output_path(&cfg.output, cfg.overwrite)?;
 
-        let input_file = fs::File::open_ciphertext_file(input)?;
+        let mut rng = rand::rng();
+        let tmp_output = gen_tmp_path(&cfg.output, &mut rng);
+
+        let input_file = fs::File::open_ciphertext_file(&cfg.input)?;
         let output_file = fs::File::create_out_file(&tmp_output)?;
+
         let mut reader = io::BufReader::new(input_file);
         let mut writer = io::BufWriter::new(output_file);
 
@@ -142,7 +131,7 @@ impl Cli {
             })?;
         }
 
-        fs::rename(&tmp_output, output).map_err(|e| {
+        fs::rename(&tmp_output, &cfg.output).map_err(|e| {
             _ = fs::remove_file(&tmp_output);
             e
         })?;
