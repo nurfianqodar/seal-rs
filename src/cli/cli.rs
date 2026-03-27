@@ -1,15 +1,16 @@
-use std::{fs, io, path};
-
 use crate::{
     chunk::{OptionalChunk, RequiredChunk},
-    cli::{Config, Mode, guard::ask_password},
+    cli::{Config, Mode},
     file::{CipherText, Header, PlainText, SealFile},
     result::Result,
 };
 use clap::Parser;
 use rand::{RngExt, distr, rngs};
+use std::{fs, io, path};
 
 const CHUNK_SIZE: usize = 1024 * 256;
+const ARGON2_VERSION: argon2::Version = argon2::Version::V0x13;
+
 pub struct Cli {
     config: Config,
 }
@@ -57,12 +58,11 @@ impl Cli {
         let mut reader = io::BufReader::new(input_file);
         let mut writer = io::BufWriter::new(output_file);
 
-        let password = ask_password().map_err(|e| {
+        let password = rpassword::prompt_password("password: ").map_err(|e| {
             _ = fs::remove_file(&tmp_output);
             e
         })?;
 
-        const ARGON2_VERSION: argon2::Version = argon2::Version::V0x13;
         let header = Header::new(&mut rng, ARGON2_VERSION, t_cost, m_cost, p_cost);
 
         header.write_to(&mut writer).map_err(|e| {
@@ -111,7 +111,7 @@ impl Cli {
         let mut reader = io::BufReader::new(input_file);
         let mut writer = io::BufWriter::new(output_file);
 
-        let password = ask_password().map_err(|e| {
+        let password = rpassword::prompt_password("password: ").map_err(|e| {
             _ = fs::remove_file(&tmp_output);
             e
         })?;
@@ -168,7 +168,7 @@ fn gen_tmp_path(origin: &str, rng: &mut rngs::ThreadRng) -> path::PathBuf {
 
 fn validate_output_path(output: &str, overwrite: bool) -> Result<()> {
     let path = path::Path::new(output);
-    if path.exists() {
+    if path.try_exists()? {
         if !overwrite {
             return Err(io::Error::new(io::ErrorKind::AlreadyExists, "already exists").into());
         }
