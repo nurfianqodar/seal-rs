@@ -33,7 +33,7 @@ const MEMORY_COST: u32 = 1024;
 const PARALLELISM: u32 = 2;
 
 #[cfg(not(test))]
-const CHUNK_SIZE: usize = 1024 * 256;
+const CHUNK_SIZE: usize = 1024 * 512;
 
 #[cfg(test)]
 const CHUNK_SIZE: usize = 1024 * 10;
@@ -97,7 +97,7 @@ mod tests {
     use crate::{
         core::{decrypt, encrypt},
         error::Error,
-        result::{self, Result},
+        result::Result,
     };
 
     #[test]

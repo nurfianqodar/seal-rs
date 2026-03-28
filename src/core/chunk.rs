@@ -180,3 +180,58 @@ impl<const S: usize> CipherText<S> {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use crate::{
+        core::{
+            chunk::{OptionalChunk, PlainText},
+            header::Header,
+        },
+        result::Result,
+    };
+
+    #[test]
+    fn read_plain_some() -> Result<()> {
+        let mut buf = Vec::from(b"Hello world!");
+        let mut cursor = io::Cursor::new(&mut buf);
+
+        let plaintext = PlainText::<256>::read_from(&mut cursor)?;
+        assert!(plaintext.is_some());
+        if let Some(pt) = plaintext {
+            assert!(pt.len == buf.len());
+            assert_eq!(pt.buf[..pt.len], buf);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn read_plain_none() -> Result<()> {
+        let mut buf = Vec::<u8>::new();
+        let mut cursor = io::Cursor::new(&mut buf);
+
+        let plaintext = PlainText::<256>::read_from(&mut cursor)?;
+        assert!(plaintext.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn encrypt_plain() -> Result<()> {
+        let mut buf = Vec::from(b"Hello world!");
+        let mut cursor = io::Cursor::new(&mut buf);
+        let plaintext = PlainText::<256>::read_from(&mut cursor)
+            .expect("should success")
+            .expect("should some");
+        let pt_len = plaintext.len;
+        let header = Header::new(argon2::Version::V0x13, 2, 1024, 2);
+        let mut cipher = header.gen_cipher("secretpassword")?;
+
+        let ciphertext = plaintext.encrypt(&header, &mut cipher)?;
+        assert!(ciphertext.len == pt_len);
+        let plaintext2 = ciphertext.decrypt(&header, &mut cipher)?;
+        assert_eq!(plaintext2.buf[..plaintext2.len], buf);
+        Ok(())
+    }
+}

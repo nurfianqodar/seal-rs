@@ -12,7 +12,7 @@ pub trait Action {
     fn run(&self) -> Result<()>;
 }
 
-#[derive(Debug, Clone, clap::Args)]
+#[derive(Debug, Clone, clap::Args, zeroize::ZeroizeOnDrop)]
 pub struct Encrypt {
     #[arg(short, long, help = "path to input file")]
     input: String,
@@ -24,22 +24,29 @@ pub struct Encrypt {
         help = "overwrite output file if exists"
     )]
     overwrite: bool,
+    #[arg(long, short)]
+    password: Option<String>,
 }
 
 impl Action for Encrypt {
     fn run(&self) -> Result<()> {
         validate_output_path(&self.output, self.overwrite)?;
-        let mut password = rpassword::prompt_password("password: ")?;
+        let mut password;
+        if let Some(pwd) = &self.password {
+            password = pwd.clone();
+        } else {
+            password = rpassword::prompt_password("password: ")?;
+            let mut retype_password = rpassword::prompt_password("retype password: ")?;
+            if password != retype_password {
+                password.zeroize();
+                retype_password.zeroize();
+                return Err(Error::PasswordNotMatch)?;
+            }
+            retype_password.zeroize();
+        }
         if password.is_empty() {
             return Err(Error::EmptyPassword);
         }
-        let mut retype_password = rpassword::prompt_password("retype password: ")?;
-        if password != retype_password {
-            password.zeroize();
-            retype_password.zeroize();
-            return Err(Error::PasswordNotMatch)?;
-        }
-        retype_password.zeroize();
         let tmp_output = gen_tmp_path(&self.output);
         let mut reader = fs::File::open_plaintext_reader(&self.input).inspect_err(|_| {
             password.zeroize();
@@ -73,12 +80,29 @@ pub struct Decrypt {
         help = "overwrite output file if exists"
     )]
     overwrite: bool,
+    #[arg(long, short)]
+    password: Option<String>,
 }
 
 impl Action for Decrypt {
     fn run(&self) -> Result<()> {
         validate_output_path(&self.output, self.overwrite)?;
-        let mut password = rpassword::prompt_password("password: ")?;
+        let mut password;
+        if let Some(pwd) = &self.password {
+            password = pwd.clone();
+        } else {
+            password = rpassword::prompt_password("password: ")?;
+            let mut retype_password = rpassword::prompt_password("retype password: ")?;
+            if password != retype_password {
+                password.zeroize();
+                retype_password.zeroize();
+                return Err(Error::PasswordNotMatch)?;
+            }
+            retype_password.zeroize();
+        }
+        if password.is_empty() {
+            return Err(Error::EmptyPassword);
+        }
         let tmp_output = gen_tmp_path(&self.output);
         let mut reader = fs::File::open_ciphertext_reader(&self.input).inspect_err(|_| {
             password.zeroize();
@@ -102,11 +126,29 @@ impl Action for Decrypt {
 pub struct Verify {
     #[arg(short, long, help = "path to input file")]
     input: String,
+    #[arg(short, long)]
+    password: Option<String>,
 }
 
 impl Action for Verify {
     fn run(&self) -> Result<()> {
-        let mut password = rpassword::prompt_password("password: ")?;
+        let mut password;
+        if let Some(pwd) = &self.password {
+            password = pwd.clone();
+        } else {
+            password = rpassword::prompt_password("password: ")?;
+            let mut retype_password = rpassword::prompt_password("retype password: ")?;
+            if password != retype_password {
+                password.zeroize();
+                retype_password.zeroize();
+                return Err(Error::PasswordNotMatch)?;
+            }
+            retype_password.zeroize();
+        }
+        if password.is_empty() {
+            return Err(Error::EmptyPassword);
+        }
+
         let mut reader = fs::File::open_ciphertext_reader(&self.input).inspect_err(|_| {
             password.zeroize();
         })?;

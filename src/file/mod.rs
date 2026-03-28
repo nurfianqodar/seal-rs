@@ -29,7 +29,7 @@ impl SealFile for fs::File {
         if reader_has_magic(&mut file)? {
             return Err(Error::Encrypted);
         }
-        Ok(io::BufReader::new(file))
+        Ok(io::BufReader::with_capacity(1024 * 1024, file))
     }
 
     fn open_ciphertext_reader<P>(path: P) -> Result<io::BufReader<fs::File>>
@@ -44,7 +44,7 @@ impl SealFile for fs::File {
         if !reader_has_magic(&mut file)? {
             return Err(Error::NotEncrypted);
         }
-        Ok(io::BufReader::new(file))
+        Ok(io::BufReader::with_capacity(1024 * 1024, file))
     }
 
     fn create_out_writer<P>(path: P) -> Result<io::BufWriter<fs::File>>
