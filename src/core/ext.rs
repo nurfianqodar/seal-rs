@@ -40,3 +40,38 @@ impl RequiredChunk for u32 {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use crate::{core::chunk::RequiredChunk, result::Result};
+
+    #[test]
+    fn write_read_u32() -> Result<()> {
+        let mut buf = Vec::<u8>::new();
+        let mut cursor = io::Cursor::new(&mut buf);
+
+        let value = 1024u32;
+        value.write_to(&mut cursor)?;
+
+        let mut cursor2 = io::Cursor::new(&mut buf);
+        let readed_value = u32::read_from(&mut cursor2)?;
+        assert!(readed_value == value);
+        Ok(())
+    }
+
+    #[test]
+    fn write_read_u64() -> Result<()> {
+        let mut buf = Vec::<u8>::new();
+        let mut cursor = io::Cursor::new(&mut buf);
+
+        let value = 1024u64;
+        value.write_to(&mut cursor)?;
+
+        let mut cursor2 = io::Cursor::new(&mut buf);
+        let readed_value = u64::read_from(&mut cursor2)?;
+        assert!(readed_value == value);
+        Ok(())
+    }
+}

@@ -23,9 +23,20 @@ const FILE_ID_LEN: usize = 8;
 const SALT_LEN: usize = 16;
 const ARGON2_VERSION: argon2::Version = argon2::Version::V0x13;
 const TIME_COST: u32 = 3;
+
+#[cfg(not(test))]
 const MEMORY_COST: u32 = 1024 * 128;
+
+#[cfg(test)]
+const MEMORY_COST: u32 = 1024;
+
 const PARALLELISM: u32 = 2;
+
+#[cfg(not(test))]
 const CHUNK_SIZE: usize = 1024 * 256;
+
+#[cfg(test)]
+const CHUNK_SIZE: usize = 1024 * 10;
 
 pub fn encrypt<R, W>(reader: &mut R, writer: &mut W, password: &str) -> Result<()>
 where
@@ -77,4 +88,57 @@ where
     }
 
     Ok(magic == MAGIC)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::{self, Write};
+
+    use crate::{
+        core::{decrypt, encrypt},
+        error::Error,
+        result::{self, Result},
+    };
+
+    #[test]
+    fn encrypt_decrypt_success() -> Result<()> {
+        let msg = b"Hello world!";
+        let mut buf_plain = Vec::from(msg);
+        let mut buf_cipher = Vec::<u8>::new();
+        let mut reader = io::Cursor::new(&mut buf_plain);
+        let mut writer = io::Cursor::new(&mut buf_cipher);
+        let password = "secretpassword";
+        encrypt(&mut reader, &mut writer, password)?;
+
+        let mut buf_plain2 = Vec::from(msg);
+        let mut reader = io::Cursor::new(&mut buf_cipher);
+        let mut writer = io::Cursor::new(&mut buf_plain2);
+        decrypt(&mut reader, &mut writer, password)?;
+
+        assert!(buf_plain == buf_plain2);
+        Ok(())
+    }
+
+    #[test]
+    fn encrypt_decrypt_corrupted() -> Result<()> {
+        let msg = b"Hello world!";
+        let mut buf_plain = Vec::from(msg);
+        let mut buf_cipher = Vec::<u8>::new();
+        let mut reader = io::Cursor::new(&mut buf_plain);
+        let mut writer = io::Cursor::new(&mut buf_cipher);
+        let password = "secretpassword";
+        encrypt(&mut reader, &mut writer, password)?;
+        writer.write_all(b"corruptor")?;
+
+        let mut buf_plain2 = Vec::from(msg);
+        let mut reader = io::Cursor::new(&mut buf_cipher);
+        let mut writer = io::Cursor::new(&mut buf_plain2);
+        let result = decrypt(&mut reader, &mut writer, password);
+
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert!(e == Error::FileCorrupt);
+        }
+        Ok(())
+    }
 }

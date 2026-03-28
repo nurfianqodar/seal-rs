@@ -1,6 +1,6 @@
 use std::{fmt, io};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     Unknown,
     OutOfMemory,
