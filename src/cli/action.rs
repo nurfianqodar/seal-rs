@@ -28,13 +28,32 @@ impl Action for Encrypt {
     fn run(&self) -> Result<()> {
         validate_output_path(&self.output, self.overwrite)?;
         let mut password = rpassword::prompt_password("password: ")?;
+        let mut retype_password = rpassword::prompt_password("retype password: ")?;
+        if password != retype_password {
+            password.zeroize();
+            retype_password.zeroize();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "password not match",
+            ))?;
+        }
+        retype_password.zeroize();
+
         let tmp_output = gen_tmp_path(&self.output);
-        let mut reader = io::BufReader::new(fs::File::open_plaintext_file(&self.input)?);
-        let mut writer = io::BufWriter::new(fs::File::create_out_file(&tmp_output)?);
+        let mut reader =
+            io::BufReader::new(fs::File::open_plaintext_file(&self.input).inspect_err(|_| {
+                password.zeroize();
+            })?);
+        let mut writer =
+            io::BufWriter::new(fs::File::create_out_file(&tmp_output).inspect_err(|_| {
+                password.zeroize();
+            })?);
         encrypt(&mut reader, &mut writer, &password).inspect_err(|_| {
+            password.zeroize();
             _ = fs::remove_file(&tmp_output);
         })?;
         fs::rename(&tmp_output, &self.output).inspect_err(|_| {
+            password.zeroize();
             _ = fs::remove_file(&tmp_output);
         })?;
         password.zeroize();
@@ -62,8 +81,15 @@ impl Action for Decrypt {
         validate_output_path(&self.output, self.overwrite)?;
         let mut password = rpassword::prompt_password("password: ")?;
         let tmp_output = gen_tmp_path(&self.output);
-        let mut reader = io::BufReader::new(fs::File::open_ciphertext_file(&self.input)?);
-        let mut writer = io::BufWriter::new(fs::File::create_out_file(&tmp_output)?);
+        let mut reader = io::BufReader::new(
+            fs::File::open_ciphertext_file(&self.input).inspect_err(|_| {
+                password.zeroize();
+            })?,
+        );
+        let mut writer =
+            io::BufWriter::new(fs::File::create_out_file(&tmp_output).inspect_err(|_| {
+                password.zeroize();
+            })?);
         decrypt(&mut reader, &mut writer, &password).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
         })?;
@@ -85,9 +111,14 @@ pub struct Verify {
 impl Action for Verify {
     fn run(&self) -> Result<()> {
         let mut password = rpassword::prompt_password("password: ")?;
-        let mut reader = io::BufReader::new(fs::File::open_ciphertext_file(&self.input)?);
+        let mut reader = io::BufReader::new(
+            fs::File::open_ciphertext_file(&self.input).inspect_err(|_| {
+                password.zeroize();
+            })?,
+        );
         let mut writer = io::sink();
         decrypt(&mut reader, &mut writer, &password).inspect_err(|_| {
+            password.zeroize();
             println!("verification failed!");
         })?;
         password.zeroize();
