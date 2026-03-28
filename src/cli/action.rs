@@ -92,13 +92,6 @@ impl Action for Decrypt {
             password = pwd.clone();
         } else {
             password = rpassword::prompt_password("password: ")?;
-            let mut retype_password = rpassword::prompt_password("retype password: ")?;
-            if password != retype_password {
-                password.zeroize();
-                retype_password.zeroize();
-                return Err(Error::PasswordNotMatch)?;
-            }
-            retype_password.zeroize();
         }
         if password.is_empty() {
             return Err(Error::EmptyPassword);
@@ -137,13 +130,6 @@ impl Action for Verify {
             password = pwd.clone();
         } else {
             password = rpassword::prompt_password("password: ")?;
-            let mut retype_password = rpassword::prompt_password("retype password: ")?;
-            if password != retype_password {
-                password.zeroize();
-                retype_password.zeroize();
-                return Err(Error::PasswordNotMatch)?;
-            }
-            retype_password.zeroize();
         }
         if password.is_empty() {
             return Err(Error::EmptyPassword);
