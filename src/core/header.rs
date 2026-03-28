@@ -1,4 +1,7 @@
+use std::io;
+
 use crate::core::{FILE_ID_LEN, MAGIC, MAGIC_LEN, RequiredChunk, SALT_LEN, VERSION, VERSION_LEN};
+use crate::error::Error;
 use crate::result::Result;
 use aes_gcm::KeyInit;
 use rand::Rng;
@@ -25,14 +28,31 @@ impl RequiredChunk for Header {
         // order:
         // magic,version,file_id,argon2_version,salt,m_cost,t_cost,p_cost
         let mut magic: [u8; MAGIC_LEN] = [0; MAGIC_LEN];
-        reader.read_exact(&mut magic)?;
+        reader.read_exact(&mut magic).map_err(|e| match e.kind() {
+            io::ErrorKind::UnexpectedEof => Error::NotEncrypted, // it means file doesn't have magic
+            _ => e.into(),
+        })?;
+        if magic != MAGIC {
+            return Err(Error::InvalidMagic);
+        }
+
         let mut version: [u8; VERSION_LEN] = [0; VERSION_LEN];
         reader.read_exact(&mut version)?;
+        if !(version[0] == VERSION[0] && version[1] == VERSION[1] && version[2] <= VERSION[2]) {
+            return Err(Error::IncompatibleVersion);
+        }
+
         let mut file_id: [u8; FILE_ID_LEN] = [0; FILE_ID_LEN];
         reader.read_exact(&mut file_id)?;
-        let argon2_version = u32::read_from(reader)?;
+
+        let argon2_version_u32 = u32::read_from(reader)?;
+        let argon2_version: argon2::Version = argon2_version_u32
+            .try_into()
+            .map_err(|_| Error::InvalidArgon2Version)?;
+
         let mut salt: [u8; SALT_LEN] = [0; SALT_LEN];
         reader.read_exact(&mut salt)?;
+
         let m_cost = u32::read_from(reader)?;
         let t_cost = u32::read_from(reader)?;
         let p_cost = u32::read_from(reader)?;
@@ -41,7 +61,7 @@ impl RequiredChunk for Header {
             magic,
             version,
             file_id,
-            argon2_version: argon2_version.try_into()?,
+            argon2_version,
             salt,
             m_cost,
             t_cost,
@@ -91,10 +111,15 @@ impl Header {
     }
 
     pub fn gen_cipher(&self, password: &str) -> Result<aes_gcm::Aes256Gcm> {
-        let params = argon2::Params::new(self.m_cost, self.t_cost, self.p_cost, Some(32))?;
+        let params = argon2::Params::new(self.m_cost, self.t_cost, self.p_cost, Some(32))
+            .map_err(|_| Error::InvalidArgon2Param)?;
+
         let a2id = argon2::Argon2::new(argon2::Algorithm::Argon2id, self.argon2_version, params);
+
         let mut key = [0u8; 32];
-        a2id.hash_password_into(password.as_bytes(), &self.salt, &mut key)?;
+        a2id.hash_password_into(password.as_bytes(), &self.salt, &mut key)
+            .map_err(|_| Error::KeyDerivation)?;
+
         let cipher = aes_gcm::Aes256Gcm::new((&key).into());
         Ok(cipher)
     }

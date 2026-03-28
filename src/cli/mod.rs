@@ -22,9 +22,21 @@ impl Cli {
 
     pub fn run(&self) -> Result<()> {
         match &self.config.mode {
-            Mode::Encrypt(encrypt) => encrypt.run(),
-            Mode::Decrypt(decrypt) => decrypt.run(),
-            Mode::Verify(verify) => verify.run(),
+            Mode::Encrypt(encrypt) => {
+                encrypt.run()?;
+                println!("encrypt success");
+                Ok(())
+            }
+            Mode::Decrypt(decrypt) => {
+                decrypt.run()?;
+                println!("decrypt success");
+                Ok(())
+            }
+            Mode::Verify(verify) => {
+                verify.run()?;
+                println!("verify success");
+                Ok(())
+            }
             Mode::Version => {
                 println!("seal v{}", VERSION_STRING);
                 Ok(())

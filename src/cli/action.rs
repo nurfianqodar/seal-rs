@@ -2,6 +2,7 @@ use zeroize::Zeroize;
 
 use crate::cli::util::{gen_tmp_path, validate_output_path};
 use crate::core::{decrypt, encrypt};
+use crate::error::Error;
 use crate::file::SealFile;
 use crate::result::Result;
 use std::{fs, io};
@@ -28,17 +29,16 @@ impl Action for Encrypt {
     fn run(&self) -> Result<()> {
         validate_output_path(&self.output, self.overwrite)?;
         let mut password = rpassword::prompt_password("password: ")?;
+        if password.is_empty() {
+            return Err(Error::EmptyPassword);
+        }
         let mut retype_password = rpassword::prompt_password("retype password: ")?;
         if password != retype_password {
             password.zeroize();
             retype_password.zeroize();
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "password not match",
-            ))?;
+            return Err(Error::PasswordNotMatch)?;
         }
         retype_password.zeroize();
-
         let tmp_output = gen_tmp_path(&self.output);
         let mut reader =
             io::BufReader::new(fs::File::open_plaintext_file(&self.input).inspect_err(|_| {
@@ -57,7 +57,6 @@ impl Action for Encrypt {
             _ = fs::remove_file(&tmp_output);
         })?;
         password.zeroize();
-        println!("encryption success");
         Ok(())
     }
 }
@@ -97,7 +96,6 @@ impl Action for Decrypt {
         fs::rename(&tmp_output, &self.output).inspect_err(|_| {
             _ = fs::remove_file(&tmp_output);
         })?;
-        println!("decryption success");
         Ok(())
     }
 }
@@ -117,12 +115,11 @@ impl Action for Verify {
             })?,
         );
         let mut writer = io::sink();
-        decrypt(&mut reader, &mut writer, &password).inspect_err(|_| {
+        decrypt(&mut reader, &mut writer, &password).map_err(|_| {
             password.zeroize();
-            println!("verification failed!");
+            Error::VerificationFailed
         })?;
         password.zeroize();
-        println!("verification success");
         Ok(())
     }
 }

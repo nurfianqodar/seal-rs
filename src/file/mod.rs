@@ -1,6 +1,6 @@
-use crate::core::reader_has_magic;
 use crate::result::Result;
-use std::{fs, io, path};
+use crate::{core::reader_has_magic, error::Error};
+use std::{fs, path};
 
 pub trait SealFile {
     fn open_plaintext_file<P>(path: P) -> Result<fs::File>
@@ -27,7 +27,7 @@ impl SealFile for fs::File {
             .create(false)
             .open(path)?;
         if reader_has_magic(&mut file)? {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "file was encrypted").into());
+            return Err(Error::Encrypted);
         }
         Ok(file)
     }
@@ -42,9 +42,7 @@ impl SealFile for fs::File {
             .create(false)
             .open(path)?;
         if !reader_has_magic(&mut file)? {
-            return Err(
-                io::Error::new(io::ErrorKind::InvalidData, "file was not encrypted").into(),
-            );
+            return Err(Error::NotEncrypted);
         }
         Ok(file)
     }

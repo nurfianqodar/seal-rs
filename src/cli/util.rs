@@ -1,16 +1,16 @@
-use crate::result::Result;
+use crate::{error::Error, result::Result};
 use rand::{RngExt, distr};
-use std::{fs, io, path};
+use std::{fs, path};
 
 pub fn validate_output_path(output: &str, overwrite: bool) -> Result<()> {
     let path = path::Path::new(output);
     if path.try_exists()? {
         if !overwrite {
-            return Err(io::Error::new(io::ErrorKind::AlreadyExists, "already exists").into());
+            return Err(Error::AlreadyExists);
         }
         let meta = fs::metadata(path)?;
         if !meta.is_file() {
-            return Err(io::Error::new(io::ErrorKind::IsADirectory, "not a file").into());
+            return Err(Error::NotAFile);
         }
     }
     Ok(())

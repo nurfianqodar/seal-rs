@@ -2,6 +2,7 @@ use crate::core::{
     Header,
     util::{self, new_id},
 };
+use crate::error::Error;
 use crate::result::Result;
 use aes_gcm::aead::AeadMutInPlace;
 use std::io;
@@ -70,7 +71,7 @@ impl<const S: usize> OptionalChunk for PlainText<S> {
             return Ok(());
         }
         if self.len > S {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "chunk size overflow").into());
+            return Err(Error::WriteSizeOverflow);
         }
         writer.write_all(&self.buf[..self.len])?;
         Ok(())
@@ -85,8 +86,9 @@ impl<const S: usize> PlainText<S> {
     ) -> Result<CipherText<S>> {
         let id = new_id();
         let nonce = header.gen_nonce(id);
-        let tag =
-            cipher.encrypt_in_place_detached((&nonce).into(), &id, &mut self.buf[..self.len])?;
+        let tag = cipher
+            .encrypt_in_place_detached((&nonce).into(), &id, &mut self.buf[..self.len])
+            .map_err(|_| Error::EncryptFailed)?;
         Ok(CipherText {
             id,
             buf: self.buf,
@@ -122,19 +124,13 @@ impl<const S: usize> OptionalChunk for CipherText<S> {
         while readn < id.len() {
             let n = reader.read(&mut id[readn..])?;
             if n == 0 {
-                return Err(
-                    io::Error::new(io::ErrorKind::UnexpectedEof, "truncated chunk id").into(),
-                );
+                return Err(Error::FileCorrupt);
             }
             readn += n;
         }
         let len = u64::read_from(reader)? as usize;
         if len > S {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "length of buffer information is larger than chunk buffer",
-            )
-            .into());
+            return Err(Error::FileCorrupt);
         }
         let mut buf = [0u8; S];
         reader.read_exact(&mut buf[..len])?;
@@ -153,7 +149,7 @@ impl<const S: usize> OptionalChunk for CipherText<S> {
             return Ok(());
         }
         if self.len > S {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "chunk size overflow").into());
+            return Err(Error::WriteSizeOverflow);
         }
         writer.write_all(&self.id)?;
         (self.len as u64).write_to(writer)?;
@@ -170,12 +166,14 @@ impl<const S: usize> CipherText<S> {
         cipher: &mut aes_gcm::Aes256Gcm,
     ) -> Result<PlainText<S>> {
         let nonce = header.gen_nonce(self.id);
-        cipher.decrypt_in_place_detached(
-            (&nonce).into(),
-            &self.id,
-            &mut self.buf[..self.len],
-            (&self.tag).into(),
-        )?;
+        cipher
+            .decrypt_in_place_detached(
+                (&nonce).into(),
+                &self.id,
+                &mut self.buf[..self.len],
+                (&self.tag).into(),
+            )
+            .map_err(|_| Error::DecryptFailed)?;
         Ok(PlainText {
             buf: self.buf,
             len: self.len,

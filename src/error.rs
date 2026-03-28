@@ -2,55 +2,76 @@ use std::{fmt, io};
 
 #[derive(Debug)]
 pub enum Error {
-    Io(io::Error),
-    Argon2(argon2::Error),
-    Aes(aes_gcm::Error),
+    Unknown,
+    OutOfMemory,
+    DecryptFailed,
+    EncryptFailed,
+    EmptyPassword,
+    FileCorrupt,
+    NotEncrypted,
+    Encrypted,
+    NotFound,
+    IsADirectory,
+    PermissionDenied,
+    AlreadyExists,
+    IncompatibleVersion,
+    InvalidArgon2Param,
+    InvalidArgon2Version,
+    InvalidMagic,
+    KeyDerivation,
+    WriteSizeOverflow,
+    NotAFile,
+    PasswordNotMatch,
+    VerificationFailed,
+    StorageFull,
 }
 
 impl From<io::Error> for Error {
     fn from(value: io::Error) -> Self {
-        Self::Io(value)
-    }
-}
-
-impl From<argon2::Error> for Error {
-    fn from(value: argon2::Error) -> Self {
-        Self::Argon2(value)
-    }
-}
-
-impl From<aes_gcm::Error> for Error {
-    fn from(value: aes_gcm::Error) -> Self {
-        Self::Aes(value)
+        match value.kind() {
+            io::ErrorKind::NotFound => Self::NotFound,
+            io::ErrorKind::IsADirectory => Self::IsADirectory,
+            io::ErrorKind::PermissionDenied => Self::PermissionDenied,
+            io::ErrorKind::UnexpectedEof => Self::FileCorrupt,
+            io::ErrorKind::AlreadyExists => Self::AlreadyExists,
+            io::ErrorKind::OutOfMemory => Self::OutOfMemory,
+            io::ErrorKind::StorageFull => Self::StorageFull,
+            _ => Self::Unknown,
+        }
     }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Io(e) => write!(f, "{}", io_msg(e.kind())),
-            Self::Argon2(_e) => write!(f, "invalid key derivation parameter(s)"),
-            Self::Aes(_e) => write!(f, "decryption failed"),
-        }
+        write!(f, "{}", self.msg())
     }
 }
 
 impl std::error::Error for Error {}
 
-fn io_msg(kind: io::ErrorKind) -> &'static str {
-    match kind {
-        io::ErrorKind::NotFound => "file not found",
-        io::ErrorKind::PermissionDenied => "permission denied",
-        io::ErrorKind::AlreadyExists => "file already exists",
-        io::ErrorKind::InvalidInput => "invalid input",
-        io::ErrorKind::InvalidData => "incompatible file",
-        io::ErrorKind::UnexpectedEof => "data was corrupt",
-        io::ErrorKind::WriteZero => "failed to write file",
-        io::ErrorKind::OutOfMemory => "out of memory",
-        io::ErrorKind::Interrupted => "operation interrupted",
-        io::ErrorKind::Unsupported => "operation not supported",
-        io::ErrorKind::TimedOut => "operation timed out",
-        io::ErrorKind::WouldBlock => "resource temporarily unavailable",
-        _ => "i/o error",
+impl Error {
+    pub fn msg(&self) -> &'static str {
+        match self {
+            Self::IsADirectory | Self::NotAFile => "not a file",
+            Self::AlreadyExists => "file already exists",
+            Self::DecryptFailed => "decryption failed",
+            Self::EncryptFailed => "encryption failed",
+            Self::EmptyPassword => "password is empty",
+            Self::FileCorrupt => "file was corrupt or changed",
+            Self::NotEncrypted | Self::InvalidMagic => "file was not encrypted",
+            Self::Encrypted => "file already encrypted",
+            Self::PermissionDenied => "permission denied",
+            Self::IncompatibleVersion => "incompatible version",
+            Self::NotFound => "file not found",
+            Self::PasswordNotMatch => "password not match",
+            Self::VerificationFailed => "verification failed",
+            Self::OutOfMemory => "out of memory",
+            Self::StorageFull => "storage full",
+            Self::InvalidArgon2Param
+            | Self::InvalidArgon2Version
+            | Self::WriteSizeOverflow
+            | Self::KeyDerivation
+            | Self::Unknown => "unknown internal error",
+        }
     }
 }
