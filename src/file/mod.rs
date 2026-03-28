@@ -1,23 +1,23 @@
 use crate::result::Result;
 use crate::{core::reader_has_magic, error::Error};
-use std::{fs, path};
+use std::{fs, io, path};
 
 pub trait SealFile {
-    fn open_plaintext_file<P>(path: P) -> Result<fs::File>
+    fn open_plaintext_reader<P>(path: P) -> Result<io::BufReader<fs::File>>
     where
         P: AsRef<path::Path>;
 
-    fn open_ciphertext_file<P>(path: P) -> Result<fs::File>
+    fn open_ciphertext_reader<P>(path: P) -> Result<io::BufReader<fs::File>>
     where
         P: AsRef<path::Path>;
 
-    fn create_out_file<P>(path: P) -> Result<fs::File>
+    fn create_out_writer<P>(path: P) -> Result<io::BufWriter<fs::File>>
     where
         P: AsRef<path::Path>;
 }
 
 impl SealFile for fs::File {
-    fn open_plaintext_file<P>(path: P) -> Result<fs::File>
+    fn open_plaintext_reader<P>(path: P) -> Result<io::BufReader<fs::File>>
     where
         P: AsRef<path::Path>,
     {
@@ -29,10 +29,10 @@ impl SealFile for fs::File {
         if reader_has_magic(&mut file)? {
             return Err(Error::Encrypted);
         }
-        Ok(file)
+        Ok(io::BufReader::new(file))
     }
 
-    fn open_ciphertext_file<P>(path: P) -> Result<fs::File>
+    fn open_ciphertext_reader<P>(path: P) -> Result<io::BufReader<fs::File>>
     where
         P: AsRef<path::Path>,
     {
@@ -44,10 +44,10 @@ impl SealFile for fs::File {
         if !reader_has_magic(&mut file)? {
             return Err(Error::NotEncrypted);
         }
-        Ok(file)
+        Ok(io::BufReader::new(file))
     }
 
-    fn create_out_file<P>(path: P) -> Result<fs::File>
+    fn create_out_writer<P>(path: P) -> Result<io::BufWriter<fs::File>>
     where
         P: AsRef<path::Path>,
     {
@@ -56,6 +56,6 @@ impl SealFile for fs::File {
             .truncate(true)
             .write(true)
             .open(path)?;
-        Ok(file)
+        Ok(io::BufWriter::new(file))
     }
 }
